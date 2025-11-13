@@ -1,5 +1,6 @@
 import { signal } from "@preact/signals-react";
 import styles from "./style.module.css";
+import type { Task } from "../../types";
 const count = signal(0);
 const Home = () => {
     return <>
