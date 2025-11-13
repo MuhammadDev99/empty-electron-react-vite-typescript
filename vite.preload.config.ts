@@ -5,7 +5,7 @@ export default defineConfig({
     build: {
         lib: {
             entry: resolve(__dirname, 'src/preload.ts'),
-            formats: ['es'], // ← output ESM format
+            formats: ['cjs'],
             fileName: () => 'preload.js',
         },
         outDir: '.vite/build',

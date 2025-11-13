@@ -1,12 +1,16 @@
-import { app, BrowserWindow } from 'electron';
+// main.ts
+
+import { app, BrowserWindow, ipcMain } from 'electron'; // ← Add ipcMain
 import path from 'node:path';
-import { fileURLToPath } from 'node:url'; // ← Add this
+import { fileURLToPath } from 'node:url';
 import started from 'electron-squirrel-startup';
+import Store from 'electron-store'; // ← Add this line to import electron-store
 
-// Define __dirname for ESM
-const __dirname = path.dirname(fileURLToPath(import.meta.url)); // ← Add this
+// Initialize the store. It will automatically create a JSON file in the correct app data directory.
+const store = new Store();
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 if (started) {
   app.quit();
 }
@@ -16,11 +20,11 @@ const createWindow = () => {
     width: 800,
     height: 600,
     webPreferences: {
+      // Important: Ensure preload is correctly linked. Your existing path is correct.
       preload: path.join(__dirname, 'preload.js'),
     },
   });
 
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -29,18 +33,26 @@ const createWindow = () => {
     );
   }
 
-  // Open the DevTools.
   mainWindow.webContents.openDevTools();
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on('ready', () => {
+  // --- Add these handlers before creating the window ---
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+  // This listens for the 'get-tasks' message from your React app (via preload.ts)
+  ipcMain.handle('get-tasks', () => {
+    // Retrieve tasks. If 'tasks' doesn't exist, it returns an empty array.
+    return store.get('tasks', []);
+  });
+
+  // This listens for the 'set-tasks' message to save data
+  ipcMain.on('set-tasks', (event, tasks) => {
+    store.set('tasks', tasks); // Save the tasks array to the JSON file.
+  });
+
+  createWindow();
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -48,12 +60,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
